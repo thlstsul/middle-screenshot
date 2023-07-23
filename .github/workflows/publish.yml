@@ -25,26 +25,29 @@ jobs:
         with:
           submodules: false
 
-      - name: install Rust stable
+      - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
 
-      - name: install cargo-vcpkg
+      - name: Install cargo-vcpkg
         run: cargo install cargo-vcpkg
 
-      - name: vcpkg install
+      - name: Vcpkg install
         run: cargo vcpkg build
 
       - name: Build
         run: cargo build --verbose --release
+
+      - name: Move target
+        run: mv target\release\middle-screenshot.exe .
 
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1
         with:
           type: 'zip'
           filename: 'middle_screenshot.zip'
-          path: 'chi_sim.traineddata chi_sim_vert.traineddata eng.traineddata middle-screenshot.ico target\release\middle-screenshot.exe'
+          path: 'chi_sim.traineddata chi_sim_vert.traineddata eng.traineddata middle-screenshot.ico middle-screenshot.exe'
 
       - name: Upload Release
         uses: softprops/action-gh-release@v1
