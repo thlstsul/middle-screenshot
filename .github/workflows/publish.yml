@@ -44,7 +44,6 @@ jobs:
           path: 'chi_sim.traineddata chi_sim_vert.traineddata eng.traineddata middle-screenshot.ico target\release\middle-screenshot.exe'
 
       - name: Upload Release
-        uses: ncipollo/release-action@v1.12.0
+        uses: softprops/action-gh-release@v1
         with:
-          artifacts: "middle_screenshot.zip"
-          token: ${{ secrets.GITHUB_TOKEN }}
+          files: "middle_screenshot.zip"
