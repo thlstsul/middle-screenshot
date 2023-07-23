@@ -5,12 +5,15 @@ on:
     tags:
       - v*
 
+permissions:
+  contents: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  publish-tauri:
+  publish-rust:
     strategy:
       fail-fast: false
       matrix:
