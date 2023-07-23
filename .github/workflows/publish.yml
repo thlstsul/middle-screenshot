@@ -40,11 +40,11 @@ jobs:
         uses: thedoctor0/zip-release@0.7.1
         with:
           type: 'zip'
-          filename: 'middle_screenshot-${GITHUB_REF#refs/tags/}-${{ matrix.target }}.zip'
+          filename: 'middle_screenshot.zip'
           path: 'chi_sim.traineddata chi_sim_vert.traineddata eng.traineddata middle-screenshot.ico target\release\middle-screenshot.exe'
 
       - name: Upload Release
         uses: ncipollo/release-action@v1.12.0
         with:
-          artifacts: "middle_screenshot-${GITHUB_REF#refs/tags/}-${{ matrix.target }}.zip"
+          artifacts: "middle_screenshot.zip"
           token: ${{ secrets.GITHUB_TOKEN }}
