@@ -1,8 +1,9 @@
+#[derive(Debug)]
 pub struct Lens {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
 }
 
 impl Lens {
@@ -41,10 +42,10 @@ impl Lens {
             height = 0.0;
         }
 
-        let x = x.max(0.0) as i32;
-        let y = y.max(0.0) as i32;
-        let width = width as u32;
-        let height = height as u32;
+        let x = x.max(0.0) as f32;
+        let y = y.max(0.0) as f32;
+        let width = width as f32;
+        let height = height as f32;
 
         Self {
             x,

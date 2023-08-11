@@ -31,7 +31,9 @@ jobs:
           toolchain: stable
 
       - name: Install cargo-vcpkg
-        run: cargo install cargo-vcpkg
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-vcpkg
 
       - name: Vcpkg install
         run: cargo vcpkg build
