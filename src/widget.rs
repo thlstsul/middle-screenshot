@@ -14,6 +14,8 @@ use eframe::{
     IconData,
 };
 use egui_extras::RetainedImage;
+use image::{open, ImageBuffer, Rgba};
+use lazy_static::lazy_static;
 use log_error::LogError;
 use screenshots::Image;
 
@@ -21,11 +23,16 @@ use crate::{
     image::ImageExt,
     lens::Lens,
     util::{copy_text, ocr},
-    ICON,
 };
 
 const BORDER_WIDTH: f32 = 5.0;
 const SIZE_DIFF: Vec2 = egui::vec2(BORDER_WIDTH * 2.0, BORDER_WIDTH * 2.0);
+lazy_static! {
+    static ref ICON: ImageBuffer<Rgba<u8>, Vec<u8>> = open("middle-screenshot.ico")
+        .log_error("读取ICON失败")
+        .unwrap()
+        .into_rgba8();
+}
 
 pub struct Screenshot {
     image: Arc<Image>,
