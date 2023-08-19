@@ -11,7 +11,7 @@ use eframe::{
     egui::{self, Ui},
     emath,
     epaint::{Color32, Pos2, Rect, Shape, Stroke, Vec2},
-    IconData,
+    IconData, Renderer,
 };
 use egui_extras::RetainedImage;
 use image::{open, ImageBuffer, Rgba};
@@ -162,7 +162,6 @@ pub fn create_window(image: Image, lens: &Lens, scale_factor: f32) -> Result<()>
     let options = eframe::NativeOptions {
         always_on_top: true,
         decorated: false,
-        run_and_return: true,
         transparent: true,
         icon_data: Some(IconData {
             rgba: ICON.to_vec(),
@@ -171,6 +170,7 @@ pub fn create_window(image: Image, lens: &Lens, scale_factor: f32) -> Result<()>
         }),
         initial_window_size: Some(size + SIZE_DIFF),
         initial_window_pos: Some(position),
+        renderer: Renderer::Wgpu,
         ..Default::default()
     };
 

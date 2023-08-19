@@ -1,5 +1,6 @@
 #![windows_subsystem = "windows"]
 use std::{
+    process::exit,
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc::{channel, Sender},
@@ -83,6 +84,10 @@ fn main() -> Result<()> {
     tray_icon.inner_mut().add_separator()?;
     tray_icon.add_menu_item("恢复", || {
         PAUSED.swap(false, Ordering::Relaxed);
+    })?;
+    tray_icon.inner_mut().add_separator()?;
+    tray_icon.add_menu_item("退出", || {
+        exit(0);
     })?;
 
     let scale_factor: f32 = Screen::from_point(0, 0)?.display_info.scale_factor;
