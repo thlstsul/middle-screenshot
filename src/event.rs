@@ -1,3 +1,5 @@
+use winit::window::WindowId;
+
 #[derive(Debug, PartialEq)]
 pub enum Event {
     Start,
@@ -5,4 +7,6 @@ pub enum Event {
     End,
     Pause,
     Resume,
+    Close(WindowId),
+    Redraw(WindowId),
 }
