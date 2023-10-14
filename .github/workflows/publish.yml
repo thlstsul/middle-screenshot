@@ -53,3 +53,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: "middle_screenshot.zip"
+
+      - name: Upload Release Patch
+        uses: softprops/action-gh-release@v1
+        with:
+          files: "middle_screenshot.exe"
