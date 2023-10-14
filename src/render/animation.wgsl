@@ -31,7 +31,7 @@ var<uniform> uniforms: Uniforms;
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let mode = 3f;
-    let x = (in.tex_coords.x - 0.5) * 2.;
+    let x = in.tex_coords.x;
     let y = (in.tex_coords.y - 0.5) * 2.;
     let time = uniforms.time;
     let y0 = wave(x, 2f, time);
