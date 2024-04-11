@@ -16,7 +16,7 @@ use tray_icon::{TrayIconBuilder, TrayIconEvent};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::{ElementState, MouseButton, WindowEvent},
-    event_loop::{EventLoopBuilder, EventLoopProxy},
+    event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy},
 };
 
 use crate::lens::Lens;
@@ -104,7 +104,7 @@ fn main() -> Result<()> {
         .with_ansi(false)
         .init();
 
-    let event_loop = EventLoopBuilder::<Event>::with_user_event().build();
+    let event_loop = EventLoopBuilder::<Event>::with_user_event().build()?;
     let tray_icon = TrayIconBuilder::new()
         .with_tooltip("中键截屏")
         .with_icon(util::get_tray_icon()?)
@@ -120,81 +120,78 @@ fn main() -> Result<()> {
     let mut start_point = None;
     let mut windows = Windows::new(window_event_tx);
 
-    event_loop.run(move |event, event_loop, control_flow| {
-        control_flow.set_wait();
+    event_loop.set_control_flow(ControlFlow::Wait);
+    event_loop.run(move |event, event_loop| match event {
+        winit::event::Event::WindowEvent {
+            window_id,
+            event: WindowEvent::CloseRequested,
+            ..
+        } => {
+            windows.destroy(&window_id);
+        }
+        winit::event::Event::WindowEvent {
+            window_id,
+            event:
+                WindowEvent::MouseInput {
+                    state: ElementState::Released,
+                    button: MouseButton::Right,
+                    ..
+                },
+        } => {
+            windows.ocr(&window_id).log_error("OCR失败");
+        }
+        winit::event::Event::UserEvent(event) => match event {
+            Event::Start => {
+                if start_point.is_none() {
+                    start_point = Some(position);
+                }
+            }
+            Event::Move(x, y) => {
+                position = (x, y);
+            }
+            Event::End => {
+                if let Some(start) = start_point {
+                    let lens = Lens::from(start, position);
 
-        match event {
-            winit::event::Event::WindowEvent {
-                window_id,
-                event: WindowEvent::CloseRequested,
-                ..
-            } => {
+                    if let Lens {
+                        x,
+                        y,
+                        width: width @ MIN_WIDTH..,
+                        height: height @ MIN_HEIGHT..,
+                    } = lens
+                    {
+                        screenshot(&lens)
+                            .and_then(|image| {
+                                windows.create(
+                                    event_loop,
+                                    image,
+                                    PhysicalSize { width, height },
+                                    PhysicalPosition { x, y },
+                                )
+                            })
+                            .log_error("截图失败");
+                    }
+                    start_point = None;
+                }
+            }
+            Event::Pause => {
+                tray_icon
+                    .set_tooltip(Some("中键截屏（关）"))
+                    .log_error("变更TIP失败");
+            }
+            Event::Resume => {
+                tray_icon
+                    .set_tooltip(Some("中键截屏"))
+                    .log_error("变更TIP失败");
+            }
+            Event::Close(window_id) => {
                 windows.destroy(&window_id);
             }
-            winit::event::Event::WindowEvent {
-                window_id,
-                event:
-                    WindowEvent::MouseInput {
-                        state: ElementState::Released,
-                        button: MouseButton::Right,
-                        ..
-                    },
-                ..
-            } => {
-                windows.ocr(&window_id).log_error("OCR失败");
+            Event::Redraw(window_id) => {
+                windows.redraw(window_id).log_error("重绘失败");
             }
-            winit::event::Event::UserEvent(event) => match event {
-                Event::Start => {
-                    if start_point.is_none() {
-                        start_point = Some(position);
-                    }
-                }
-                Event::Move(x, y) => {
-                    position = (x, y);
-                }
-                Event::End => {
-                    if let Some(start) = start_point {
-                        let lens = Lens::from(start, position);
-
-                        if let Lens {
-                            x,
-                            y,
-                            width: width @ MIN_WIDTH..,
-                            height: height @ MIN_HEIGHT..,
-                        } = lens
-                        {
-                            screenshot(&lens)
-                                .and_then(|image| {
-                                    windows.create(
-                                        event_loop,
-                                        image,
-                                        PhysicalSize { width, height },
-                                        PhysicalPosition { x, y },
-                                    )
-                                })
-                                .log_error("截图失败");
-                        }
-                        start_point = None;
-                    }
-                }
-                Event::Pause => {
-                    tray_icon
-                        .set_tooltip(Some("中键截屏（关）"))
-                        .log_error("变更TIP失败");
-                }
-                Event::Resume => {
-                    tray_icon
-                        .set_tooltip(Some("中键截屏"))
-                        .log_error("变更TIP失败");
-                }
-                Event::Close(window_id) => {
-                    windows.destroy(&window_id);
-                }
-                Event::Redraw(window_id) => {
-                    windows.redraw(window_id).log_error("重绘失败");
-                }
-            },
-            _ => (),
-        }
-    })
+        },
+        _ => (),
+    })?;
+    Ok(())
 }

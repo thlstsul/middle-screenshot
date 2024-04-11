@@ -5,6 +5,7 @@ use anyhow::Result;
 use log_error::LogError;
 use screenshots::Image;
 use std::collections::HashMap;
+use std::sync::Arc;
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event_loop::{EventLoopProxy, EventLoopWindowTarget};
 use winit::window::{WindowBuilder, WindowId, WindowLevel};
@@ -40,6 +41,7 @@ impl Windows {
             .with_resizable(false)
             .with_transparent(true)
             .build(event_loop)?;
+        let window = Arc::new(window);
         let mut state = pollster::block_on(async { State::new(window, image, size).await });
         state.render()?;
         state.visible();

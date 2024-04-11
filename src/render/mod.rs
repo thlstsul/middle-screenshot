@@ -1,8 +1,7 @@
-use std::{iter, thread, time::Instant};
+use std::{iter, sync::Arc, thread, time::Instant};
 
 use anyhow::{Ok, Result};
 use screenshots::Image;
-use tracing::info;
 use wgpu::util::DeviceExt;
 use winit::{
     dpi::PhysicalSize,
@@ -77,7 +76,7 @@ impl Uniforms {
 }
 
 pub struct State {
-    surface: wgpu::Surface,
+    surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
@@ -92,7 +91,7 @@ pub struct State {
     uniforms_buffer: wgpu::Buffer,
     diffuse_bind_group: wgpu::BindGroup,
     uniforms_bind_group: wgpu::BindGroup,
-    window: Window,
+    window: Arc<Window>,
     image: Image,
     ocring: bool,
     instant: Instant,
@@ -100,7 +99,7 @@ pub struct State {
 }
 
 impl State {
-    pub async fn new(window: Window, image: Image, size: PhysicalSize<u32>) -> Self {
+    pub async fn new(window: Arc<Window>, image: Image, size: PhysicalSize<u32>) -> Self {
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let backends = if cfg!(windows) {
@@ -118,7 +117,7 @@ impl State {
         //
         // The surface needs to live as long as the window that created it.
         // State owns the window so this should be safe.
-        let surface = unsafe { instance.create_surface(&window) }.unwrap();
+        let surface = instance.create_surface(window.clone()).unwrap();
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -132,10 +131,8 @@ impl State {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu::Features::empty(),
-                    // WebGL doesn't support all of wgpu's features, so if
-                    // we're building for the web we'll have to disable some.
-                    limits: wgpu::Limits::default(),
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits::default(),
                 },
                 None, // Trace path
             )
@@ -160,6 +157,7 @@ impl State {
             present_mode: surface_caps.present_modes[0],
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
+            desired_maximum_frame_latency: 2,
         };
         surface.configure(&device, &config);
 
@@ -412,10 +410,12 @@ impl State {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
@@ -435,8 +435,6 @@ impl State {
                 render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
             }
         }
-
-        info!("render, ocring: {}", self.ocring);
 
         self.queue.submit(iter::once(encoder.finish()));
         output.present();
