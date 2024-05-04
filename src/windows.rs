@@ -31,9 +31,9 @@ impl Windows {
         position: PhysicalPosition<i32>,
     ) -> Result<()> {
         let window = WindowBuilder::new()
-            .with_title("中键截屏（OCR）")
+            .with_title("中键截屏")
             .with_window_icon(util::get_window_icon().ok())
-            .with_visible(false)
+            // .with_visible(false)
             .with_inner_size(size)
             .with_position(position)
             .with_window_level(WindowLevel::AlwaysOnTop)
@@ -42,9 +42,8 @@ impl Windows {
             .with_transparent(true)
             .build(event_loop)?;
         let window = Arc::new(window);
-        let mut state = pollster::block_on(async { State::new(window, image, size).await });
-        state.render()?;
-        state.visible();
+        let state = pollster::block_on(async { State::new(window, image).await });
+        // state.visible();
         self.windows.insert(state.get_id(), state);
         Ok(())
     }

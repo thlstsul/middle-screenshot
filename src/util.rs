@@ -5,7 +5,6 @@ use clipboard_win::{formats, set_clipboard};
 use image::{open, ImageBuffer, Rgba};
 use lazy_static::lazy_static;
 use leptess::LepTess;
-use log_error::LogError;
 use screenshots::{Image, Screen};
 use tracing::error;
 
@@ -15,7 +14,7 @@ const DEFAULT_DPI: i32 = 72;
 lazy_static! {
     static ref LANG: String = {
         let train_files: Vec<String> = fs::read_dir(".")
-            .log_error("读取tesseract预训练模型失败")
+            .inspect_err(|e| error!("{e}"))
             .unwrap()
             .filter_map(|f| {
                 if let Ok(f) = f {
@@ -39,7 +38,7 @@ lazy_static! {
         train_files.join("+")
     };
     static ref ICON: ImageBuffer<Rgba<u8>, Vec<u8>> = open("middle-screenshot.ico")
-        .log_error("读取ICON失败")
+        .inspect_err(|e| error!("读取ICON失败：{e}"))
         .unwrap()
         .into_rgba8();
 }
