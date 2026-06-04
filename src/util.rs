@@ -44,6 +44,7 @@ pub fn ocr(tiff: &[u8]) -> Result<String> {
     let mut tesseract = LepTess::new(None, &LANG)?;
     tesseract.set_image_from_mem(tiff)?;
     tesseract.set_fallback_source_resolution(DEFAULT_DPI);
+    tesseract.set_variable(leptess::Variable::PreserveInterwordSpaces, "1")?;
     Ok(tesseract.get_utf8_text()?)
 }
 
