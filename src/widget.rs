@@ -1,23 +1,21 @@
 use std::{
     sync::{
-        mpsc::{channel, Receiver},
         Arc,
+        mpsc::{Receiver, channel},
     },
     thread,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use eframe::{
     egui::{self, Ui},
     emath,
     epaint::{Color32, Pos2, Rect, Shape, Stroke, Vec2},
-    IconData, Renderer,
 };
-use egui_extras::RetainedImage;
-use image::{open, ImageBuffer, Rgba};
+use image::RgbaImage;
+use image::{ImageBuffer, Rgba, open};
 use lazy_static::lazy_static;
 use log_error::LogError;
-use screenshots::Image;
 
 use crate::{
     image::ImageExt,
@@ -35,15 +33,15 @@ lazy_static! {
 }
 
 pub struct Screenshot {
-    image: Arc<Image>,
+    image: Arc<RgbaImage>,
     size: Vec2,
-    texture: Option<RetainedImage>,
+    texture: Option<egui::TextureHandle>,
     loading: bool,
     finish_channel: Option<Receiver<bool>>,
 }
 
 impl Screenshot {
-    pub fn new(image: Image, size: Vec2) -> Self {
+    pub fn new(image: RgbaImage, size: Vec2) -> Self {
         Self {
             image: Arc::new(image),
             size,
@@ -53,7 +51,7 @@ impl Screenshot {
         }
     }
 
-    fn ocr(image: &Image) {
+    fn do_ocr(image: &RgbaImage) {
         image
             .to_tiff()
             .and_then(|tiff| ocr(&tiff))
@@ -101,56 +99,48 @@ impl Screenshot {
 }
 
 impl eframe::App for Screenshot {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        // no margin
-        let custom_frame = egui::Frame::default();
-        egui::CentralPanel::default()
-            .frame(custom_frame)
-            .show(ctx, |ui| {
-                ui.with_layout(
-                    egui::Layout::centered_and_justified(egui::Direction::TopDown),
-                    |ui| {
-                        if self.loading {
-                            Self::show_load(ui);
-                        } else {
-                            let texture = self.texture.get_or_insert_with(|| {
-                                let size =
-                                    [self.image.width() as usize, self.image.height() as usize];
-                                RetainedImage::from_color_image(
-                                    "sceenshot",
-                                    egui::ColorImage::from_rgba_unmultiplied(
-                                        size,
-                                        self.image.rgba(),
-                                    ),
-                                )
-                            });
+    fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
+        ui.with_layout(
+            egui::Layout::centered_and_justified(egui::Direction::TopDown),
+            |ui| {
+                if self.loading {
+                    Self::show_load(ui);
+                } else {
+                    let texture = self.texture.get_or_insert_with(|| {
+                        let size = [self.image.width() as usize, self.image.height() as usize];
+                        ui.ctx().load_texture(
+                            "screenshot",
+                            egui::ColorImage::from_rgba_unmultiplied(size, self.image.as_raw()),
+                            egui::TextureOptions::default(),
+                        )
+                    });
 
-                            //TODO 比例已经做到完全一致，但有时还是不清晰
-                            let image_resp = texture.show_size(ui, self.size);
-                            let image_resp = image_resp.interact(egui::Sense::click());
-                            if image_resp.double_clicked() {
-                                self.loading = true;
-                                let image = Arc::clone(&self.image);
-                                let (tx, rx) = channel();
-                                thread::spawn(move || {
-                                    Self::ocr(&image);
-                                    tx.send(true).log_error("OCR完成，但发送消息错误");
-                                });
-                                self.finish_channel = Some(rx);
-                            }
-                        }
-                        if let Some(rx) = &self.finish_channel {
-                            if let Ok(true) = rx.try_recv() {
-                                frame.close();
-                            }
-                        }
-                    },
-                )
-            });
+                    //TODO 比例已经做到完全一致，但有时还是不清晰
+                    let image_resp =
+                        ui.image(egui::load::SizedTexture::new(texture.id(), self.size));
+                    let image_resp = image_resp.interact(egui::Sense::click());
+                    if image_resp.double_clicked() {
+                        self.loading = true;
+                        let image = Arc::clone(&self.image);
+                        let (tx, rx) = channel();
+                        thread::spawn(move || {
+                            Self::do_ocr(&image);
+                            tx.send(true).log_error("OCR完成，但发送消息错误");
+                        });
+                        self.finish_channel = Some(rx);
+                    }
+                }
+                if let Some(rx) = &self.finish_channel
+                    && let Ok(true) = rx.try_recv()
+                {
+                    ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+            },
+        );
     }
 }
 
-pub fn create_window(image: Image, lens: &Lens, scale_factor: f32) -> Result<()> {
+pub fn create_window(image: RgbaImage, lens: &Lens, scale_factor: f32) -> Result<()> {
     let size = egui::vec2(
         image.width() as f32 / scale_factor,
         image.height() as f32 / scale_factor,
@@ -160,24 +150,25 @@ pub fn create_window(image: Image, lens: &Lens, scale_factor: f32) -> Result<()>
         lens.y / scale_factor - BORDER_WIDTH,
     );
     let options = eframe::NativeOptions {
-        always_on_top: true,
-        decorated: false,
-        transparent: true,
-        icon_data: Some(IconData {
-            rgba: ICON.to_vec(),
-            width: ICON.width(),
-            height: ICON.height(),
-        }),
-        initial_window_size: Some(size + SIZE_DIFF),
-        initial_window_pos: Some(position),
-        renderer: Renderer::Wgpu,
+        viewport: egui::ViewportBuilder::default()
+            .with_always_on_top()
+            .with_decorations(false)
+            .with_transparent(true)
+            .with_icon(egui::IconData {
+                rgba: ICON.to_vec(),
+                width: ICON.width(),
+                height: ICON.height(),
+            })
+            .with_inner_size(size + SIZE_DIFF)
+            .with_position(position),
+        renderer: eframe::Renderer::Wgpu,
         ..Default::default()
     };
 
     eframe::run_native(
         "中键截屏",
         options,
-        Box::new(move |_| Box::new(Screenshot::new(image, size))),
+        Box::new(move |_| Ok(Box::new(Screenshot::new(image, size)))),
     )
     .map_err(|e| anyhow!("{}", e))
 }

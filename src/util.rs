@@ -1,11 +1,11 @@
 use std::fs;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clipboard_win::{formats, set_clipboard};
 use lazy_static::lazy_static;
 use leptess::LepTess;
 use log_error::LogError;
-use screenshots::{Image, Screen};
+use screenshots::Screen;
 use tracing::error;
 
 use crate::{capture::ScreenExt, image::ImageExt, lens::Lens};
@@ -48,14 +48,14 @@ pub fn ocr(tiff: &[u8]) -> Result<String> {
 }
 
 /// 截图
-pub fn screenshot(lens: &Lens) -> Result<Image> {
+pub fn screenshot(lens: &Lens) -> Result<image::RgbaImage> {
     let screen = Screen::from_point(lens.x as i32, lens.y as i32)?;
     let image = screen.capture_lens(lens)?;
     Ok(image)
 }
 
 /// 复制图片到剪切板
-pub fn copy_image(image: &Image) -> Result<()> {
+pub fn copy_image(image: &image::RgbaImage) -> Result<()> {
     let bmp = image.to_bmp()?;
     set_clipboard(formats::Bitmap, bmp).map_err(|e| anyhow!(e))
 }

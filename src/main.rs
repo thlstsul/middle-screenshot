@@ -1,9 +1,9 @@
-#![windows_subsystem = "windows"]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use std::{
     process::exit,
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc::{channel, Sender},
+        mpsc::{Sender, channel},
     },
     thread,
 };
@@ -13,8 +13,10 @@ use event::Event;
 use log_error::*;
 use rdev::{Button, EventType};
 use screenshots::Screen;
-use time::{macros::format_description, UtcOffset};
-use tracing_subscriber::fmt::time::OffsetTime;
+use time::{UtcOffset, macros::format_description};
+use tracing_subscriber::{
+    EnvFilter, fmt::time::OffsetTime, layer::SubscriberExt, util::SubscriberInitExt,
+};
 use tray_item::{IconSource, TrayItem};
 
 use crate::{
@@ -49,11 +51,7 @@ fn listen(event_tx: Sender<Event>) {
         if let Some(mouse_event) = event_mapper {
             let bool = mouse_event == Event::Start || mouse_event == Event::End;
             event_tx.send(mouse_event).log_error("发送鼠标事件失败");
-            if bool {
-                None
-            } else {
-                Some(event)
-            }
+            if bool { None } else { Some(event) }
         } else {
             Some(event)
         }
@@ -62,18 +60,40 @@ fn listen(event_tx: Sender<Event>) {
 }
 
 fn main() -> Result<()> {
-    let file_appender = tracing_appender::rolling::never(".", "middle-screenshot.log");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+
     let offset = UtcOffset::current_local_offset().expect("should get local offset!");
     let timer = OffsetTime::new(
         offset,
         format_description!("[year]-[month]-[day] [hour]:[minute]:[second]"),
     );
-    tracing_subscriber::fmt()
+
+    let file_appender = tracing_appender::rolling::never(".", "middle-screenshot.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    let file_layer = tracing_subscriber::fmt::layer()
         .with_writer(non_blocking)
-        .with_timer(timer)
-        .with_ansi(false)
-        .init();
+        .with_timer(timer.clone())
+        .with_ansi(false);
+
+    #[cfg(debug_assertions)]
+    {
+        let stdout_layer = tracing_subscriber::fmt::layer()
+            .with_timer(timer)
+            .with_ansi(true);
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(stdout_layer)
+            .with(file_layer)
+            .init();
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(file_layer)
+            .init();
+    }
 
     let (mouse_event_tx, rx) = channel();
     let mut tray_icon = TrayItem::new("中键截屏", IconSource::Resource("exe-icon"))?;
