@@ -1,6 +1,6 @@
 [package]
 name = "middle-screenshot"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2024"
 exclude = [
     "*.traineddata",
@@ -14,7 +14,7 @@ dependencies = [
     "tesseract",
 ]
 git = "https://github.com/microsoft/vcpkg"
-rev = "50a4aa2"
+branch = "master"
 
 [package.metadata.vcpkg.target.x86_64-pc-windows-msvc]
 triplet = "x64-windows-static-md"
