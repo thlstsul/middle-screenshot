@@ -1,40 +1,68 @@
 [package]
 name = "middle-screenshot"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
-exclude = ["*.traineddata", "*.ico", "*.log"]
+exclude = [
+    "*.traineddata",
+    "*.ico",
+    "*.log",
+]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[package.metadata.vcpkg]
+dependencies = [
+    "leptonica",
+    "tesseract",
+]
+git = "https://github.com/microsoft/vcpkg"
+rev = "50a4aa2"
+
+[package.metadata.vcpkg.target.x86_64-pc-windows-msvc]
+triplet = "x64-windows-static-md"
 
 [dependencies]
 anyhow = "1.0.102"
 clipboard-win = "5.4.1"
-eframe = { version = "0.34.3", features = ["wgpu"]}
 egui_extras = "0.34.3"
-image = { version = "0.25.10", default-features = false, features = [
-    "bmp",
-    "tiff",
-    "ico",
-] }
 imageproc = "0.27.0"
 lazy_static = "1.5.0"
 leptess = "0.14.0"
 log-error = "0.1.2"
-rdev = { version = "0.5.3", features = ["unstable_grab"] }
 screenshots = "0.8.10"
-time = { version = "0.3.47", features = ["std", "macros"] }
 tracing = "0.1.44"
 tracing-appender = "0.2.5"
-tracing-subscriber = { version = "0.3.23", features = ["fmt", "local-time", "env-filter"] }
 tray-item = "0.10.0"
 
-[target.'cfg(windows)'.build-dependencies]
+[dependencies.eframe]
+features = ["wgpu"]
+version = "0.34.3"
+
+[dependencies.image]
+default-features = false
+features = [
+    "bmp",
+    "tiff",
+    "ico",
+]
+version = "0.25.10"
+
+[dependencies.rdev]
+features = ["unstable_grab"]
+version = "0.5.3"
+
+[dependencies.time]
+features = [
+    "std",
+    "macros",
+]
+version = "0.3.47"
+
+[dependencies.tracing-subscriber]
+features = [
+    "fmt",
+    "local-time",
+    "env-filter",
+]
+version = "0.3.23"
+
+[target."cfg(windows)".build-dependencies]
 windres = "0.2"
-
-[package.metadata.vcpkg]
-git = "https://github.com/microsoft/vcpkg"
-rev = "50a4aa2"
-dependencies = ["leptonica", "tesseract"]
-
-[package.metadata.vcpkg.target]
-x86_64-pc-windows-msvc = { triplet = "x64-windows-static-md" }
