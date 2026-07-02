@@ -20,9 +20,9 @@ git = "https://github.com/microsoft/vcpkg"
 triplet = "x64-windows-static-md"
 
 [dependencies]
-anyhow = "1.0.102"
+anyhow = "1.0.103"
 clipboard-win = "5.4.1"
-egui_extras = "0.34.3"
+egui_extras = "0.35.0"
 imageproc = "0.27.0"
 lazy_static = "1.5.0"
 leptess = "0.14.0"
@@ -34,7 +34,7 @@ tray-item = "0.10.0"
 
 [dependencies.eframe]
 features = ["wgpu"]
-version = "0.34.3"
+version = "0.35.0"
 
 [dependencies.image]
 default-features = false
@@ -54,7 +54,7 @@ features = [
     "std",
     "macros",
 ]
-version = "0.3.47"
+version = "0.3.53"
 
 [dependencies.tracing-subscriber]
 features = [
