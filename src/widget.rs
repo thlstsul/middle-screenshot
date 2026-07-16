@@ -8,9 +8,15 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use eframe::{
+    WgpuConfiguration,
     egui::{self, Ui},
+    egui_wgpu::{WgpuSetup, WgpuSetupCreateNew},
     emath,
     epaint::{Color32, Pos2, Rect, Shape, Stroke, Vec2},
+    wgpu::{
+        BackendOptions, Backends, InstanceDescriptor, InstanceFlags, MemoryBudgetThresholds,
+        MemoryHints, PowerPreference, wgt::DeviceDescriptor,
+    },
 };
 use image::RgbaImage;
 use image::{ImageBuffer, Rgba, open};
@@ -162,6 +168,27 @@ pub fn create_window(image: RgbaImage, lens: &Lens, scale_factor: f32) -> Result
             .with_inner_size(size + SIZE_DIFF)
             .with_position(position),
         renderer: eframe::Renderer::Wgpu,
+        wgpu_options: WgpuConfiguration {
+            wgpu_setup: WgpuSetup::CreateNew(WgpuSetupCreateNew {
+                instance_descriptor: InstanceDescriptor {
+                    flags: InstanceFlags::empty(),
+                    backends: Backends::PRIMARY,
+                    memory_budget_thresholds: MemoryBudgetThresholds::default(),
+                    backend_options: BackendOptions::default(),
+                    display: None, // 关键：禁用所有 debug/validation
+                },
+                device_descriptor: Arc::new(|_adapter| DeviceDescriptor {
+                    memory_hints: MemoryHints::Manual {
+                        suballocated_device_memory_block_size: 4 * 1024 * 1024..16 * 1024 * 1024,
+                    },
+                    ..Default::default()
+                }),
+                display_handle: None,
+                power_preference: PowerPreference::LowPower,
+                native_adapter_selector: None,
+            }),
+            ..Default::default()
+        },
         ..Default::default()
     };
 
