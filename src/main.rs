@@ -8,11 +8,10 @@ use std::{
     thread,
 };
 
-use anyhow::Result;
-use event::Event;
+use anyhow::{Result, anyhow};
+use eframe::egui;
 use log_error::*;
 use rdev::{Button, EventType};
-use screenshots::Screen;
 use time::{UtcOffset, macros::format_description};
 use tracing_subscriber::{
     EnvFilter, fmt::time::OffsetTime, layer::SubscriberExt, util::SubscriberInitExt,
@@ -20,9 +19,8 @@ use tracing_subscriber::{
 use tray_item::{IconSource, TrayItem};
 
 use crate::{
-    lens::Lens,
-    util::{copy_image, screenshot},
-    widget::create_window,
+    event::Event,
+    widget::{AppHost, base_options},
 };
 
 mod capture;
@@ -32,8 +30,6 @@ mod lens;
 mod util;
 mod widget;
 
-const MIN_WIDTH: f32 = 10.0;
-const MIN_HEIGHT: f32 = 5.0;
 static PAUSED: AtomicBool = AtomicBool::new(false);
 
 /// 拦截鼠标事件
@@ -110,35 +106,32 @@ fn main() -> Result<()> {
         exit(0);
     })?;
 
-    let scale_factor: f32 = Screen::from_point(0, 0)?.display_info.scale_factor;
+    let scale_factor = screenshots::Screen::from_point(0, 0)?
+        .display_info
+        .scale_factor;
 
     let _mouse_handle = thread::spawn(|| listen(mouse_event_tx));
 
-    let mut position = (0.0f64, 0.0f64);
-    let mut start_point = None;
-    while let Ok(e) = rx.recv() {
-        match e {
-            Event::Start => {
-                start_point = Some(position);
-            }
-            Event::Move(x, y) => {
-                position = (x, y);
-            }
-            Event::End => {
-                if let Some(start) = start_point {
-                    let lens = Lens::from(start, position);
+    // 单事件循环：主 viewport 缩为 1x1 移出屏幕，预览与结果窗口均为其 viewport。
+    // 主窗口必须保持 OS 级可见——eframe 只在“自身或后代可见”时才运行 UI pass，
+    // 完全隐藏会导致 App::ui 停转、鼠标事件无人消费；1x1 离屏保证用户看不见它
+    let options = base_options(
+        egui::ViewportBuilder::default()
+            .with_title("中键截屏")
+            .with_visible(true)
+            .with_active(false)
+            .with_decorations(false)
+            .with_transparent(true)
+            .with_resizable(false)
+            .with_taskbar(false)
+            .with_inner_size(egui::vec2(1.0, 1.0))
+            .with_position(egui::pos2(-32000.0, -32000.0)),
+    );
 
-                    if lens.width > MIN_WIDTH && lens.height > MIN_HEIGHT {
-                        screenshot(&lens)
-                            .and_then(|image| {
-                                copy_image(&image).and(create_window(image, &lens, scale_factor))
-                            })
-                            .log_error("截图失败");
-                    }
-                    start_point = None;
-                }
-            }
-        }
-    }
-    Ok(())
+    eframe::run_native(
+        "中键截屏",
+        options,
+        Box::new(move |_| Ok(Box::new(AppHost::new(rx, scale_factor)))),
+    )
+    .map_err(|e| anyhow!("{}", e))
 }

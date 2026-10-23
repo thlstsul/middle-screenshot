@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, thread, time::Duration};
 
 use anyhow::{Result, anyhow};
 use clipboard_win::{formats, set_clipboard};
@@ -55,10 +55,21 @@ pub fn screenshot(lens: &Lens) -> Result<image::RgbaImage> {
     Ok(image)
 }
 
-/// 复制图片到剪切板
+/// 复制图片到剪切板。剪贴板可能被其它进程（剪贴板工具、IM 等）短暂占用，失败时退避重试
 pub fn copy_image(image: &image::RgbaImage) -> Result<()> {
     let bmp = image.to_bmp()?;
-    set_clipboard(formats::Bitmap, bmp).map_err(|e| anyhow!(e))
+    let mut err = None;
+    for i in 0..15 {
+        match set_clipboard(formats::Bitmap, bmp.clone()) {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                err = Some(e);
+                // 首次立即重试，之后逐次加大间隔（总计约 500ms）
+                thread::sleep(Duration::from_millis(10 + i * 8));
+            }
+        }
+    }
+    Err(anyhow!(err.unwrap()))
 }
 
 /// 复制文字到剪切板
