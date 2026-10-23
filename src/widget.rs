@@ -8,6 +8,7 @@ use std::{
 };
 
 use eframe::{
+    Renderer,
     egui::{self, Ui, ViewportId},
     epaint::{Pos2, Vec2},
 };
@@ -363,6 +364,10 @@ impl eframe::App for AppHost {
 pub fn base_options(viewport: egui::ViewportBuilder) -> eframe::NativeOptions {
     eframe::NativeOptions {
         viewport,
+        // Glow(OpenGL) 渲染器：wgpu 在 Windows 上透明窗口不可用——DX12 对 HWND
+        // 表面只支持 Opaque alpha mode（透明会变黑），Vulkan 又会触发 Intel 核显
+        // igvk64.dll 驱动崩溃；OpenGL 像素格式原生支持 alpha，透明窗口正常工作
+        renderer: Renderer::Glow,
         ..Default::default()
     }
 }
